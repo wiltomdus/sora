@@ -1,0 +1,5 @@
+.fseventsd/
+*.metadata*
+*.Trash*
+Boot_out.txt
+System Volume Information/
