@@ -24,7 +24,9 @@ class Altimeter(object):
         self._sensor.temperature_oversample_count = DPS310_SAMPLE_COUNT.COUNT_4
         self._sensor.temperature_rate = DPS310_RATE.RATE_128_HZ
         self._sensor.mode = DPS310_MODE.CONT_PRESTEMP
-        self._sensor.sea_level_pressure = 1013.25 # 1013.25 hPa is the standard sea level pressure
+        self._sensor.sea_level_pressure = (
+            1013.25  # 1013.25 hPa is the standard sea level pressure
+        )
         self._sensor.wait_temperature_ready()
         self._sensor.wait_pressure_ready()
         print("Altimeter initalization finished!")
