@@ -12,7 +12,7 @@ class Reed:
             with keypad.Keys((pin,), value_when_pressed=False) as keys:
                 while self.async_event.is_set():
                     keypad_event = keys.events.get()
-                    if keypad_event.pressed:
+                    if keypad_event and keypad_event.pressed:
                         print("Reed switch triggered!")
                         self.async_event.clear()
                         break
