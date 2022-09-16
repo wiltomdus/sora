@@ -25,7 +25,6 @@ class FlightManager:
 
     async def fly(self, event, is_development) -> None:
         """State machine to determine the current flight stage"""
-        
         velocity_y: float = 0.0
         self.initial_altitude = self.altimeter.get_sensor_data()[1]
         print("Flight stage: %s", self.flight_stage)
@@ -48,11 +47,12 @@ class FlightManager:
 
         while event.is_set():
             
+            start_time = time.monotonic()
             # Get the accelerometer data
             self.accel_x, self.accel_y, self.accel_z, gyro_x, gyro_y, gyro_z = self.get_accel_data()
             # Get the altimeter data
             pressure, altitude, temperature = self.altimeter.get_sensor_data()
-            velocity_x, velocity_y, velocity_z = self.get_velocity()
+            velocity_x, velocity_y, velocity_z = self.get_velocity(time.monotonic() - start_time)
             
             if not is_development:
                 "In production mode, log the flight data to a file"
@@ -131,7 +131,7 @@ class FlightManager:
 
         return altitude, pressure, temperature
 
-    def get_velocity(self) -> tuple:
+    def get_velocity(self, dt) -> tuple:
         """Get the velocity for all axis"""
         accel_x_filtered = 0.0
         accel_y_filtered = 0.0
@@ -139,7 +139,6 @@ class FlightManager:
         velocity_x: float = 0.0
         velocity_y: float = 0.0
         velocity_z: float = 0.0
-        DT = 0.01 # time between each iteration # TODO make this dynamic
         S = 0.75 # filter/smoothing factor
         
         # Filter accleleration data
@@ -148,9 +147,9 @@ class FlightManager:
         accel_z_filtered = accel_z_filtered * S + self.accel_z * (1 - S)
         
         # integrate just using a reimann sum
-        velocity_x += accel_x_filtered*DT
-        velocity_y += accel_y_filtered*DT
-        velocity_z += accel_z_filtered*DT
+        velocity_x += accel_x_filtered*dt
+        velocity_y += accel_y_filtered*dt
+        velocity_z += accel_z_filtered*dt
 
         return velocity_x, velocity_y, velocity_z
 
@@ -160,7 +159,6 @@ class FlightManager:
     
     def log_flight_data(self, altitude, pressure, temperature, accel_x, accel_y, accel_z, velocity_x, velocity_y, velocity_z, flight_stage):
         try:
-            print(f"log file size: {os.stat('/data/flight-data.csv')} bytes")
             # Timestamp,Altitude,Pressure,Temperature,Velocity_X,Velocity_Y,Velocity_Z,Acceleration_X,Acceleration_Y,Acceleration_Z,FlightStage
             self.flight_data_file.write(f"{time.monotonic()},{altitude:.2f},{pressure:.2f},{temperature:.2f},{velocity_x:.4f},{velocity_y:.4f},{velocity_z:.4f},{accel_x:.4f},{accel_y:.4f},{accel_z:.4f},{flight_stage}\n")
         except OSError:  # Typically when the filesystem isn't writeable...
