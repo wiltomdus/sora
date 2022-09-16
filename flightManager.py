@@ -22,14 +22,12 @@ class FlightManager:
         self.max_altitude: float = 0.0
         self.max_velocity_y: float = 0.0
         self.max_acceleration_y: float = 0.0
-        
-        self.flight_data_file = None
 
     async def fly(self, event, is_development) -> None:
         """State machine to determine the current flight stage"""
         
         velocity_y: float = 0.0
-        self.initial_altitude = self.altimeter.get_altitude()
+        self.initial_altitude = self.altimeter.get_sensor_data()[1]
         print("Flight stage: %s", self.flight_stage)
         
         # skip first 20 iterations to allow the acceleration gravity correction to stabilize
@@ -42,7 +40,6 @@ class FlightManager:
             try:
                 self.flight_data_file = open("/data/flight-data.csv", "w")
                 self.flight_data_file.write("Timestamp,Altitude,Pressure,Temperature,Velocity_X,Velocity_Y,Velocity_Z,Acceleration_X,Acceleration_Y,Acceleration_Z,FlightStage\n")
-                self.flight_data_file.flush()
                 print("Opened flight data file...")
             except OSError as err:
                 print("Unable to open flight data file: %s", err)
@@ -54,7 +51,7 @@ class FlightManager:
             # Get the accelerometer data
             self.accel_x, self.accel_y, self.accel_z, gyro_x, gyro_y, gyro_z = self.get_accel_data()
             # Get the altimeter data
-            altitude, pressure, temperature = self.get_alti_data()
+            pressure, altitude, temperature = self.altimeter.get_sensor_data()
             velocity_x, velocity_y, velocity_z = self.get_velocity()
             
             if not is_development:
@@ -74,42 +71,32 @@ class FlightManager:
                 if self.accel_y > 5.0:  # Acceleration threshold for takeoff
                     print("Powered ascent detected!")
                     self.flight_stage = FLIGHT_STAGES[1]
-                    print(
-                        "Flight stage: %s", self.flight_stage
-                    )
+                    print(f"Flight stage: {self.flight_stage}")
                     continue
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0)
             elif self.flight_stage == FLIGHT_STAGES[1]: # POWERED_ASCENT
                 if (self.accel_y < 0.5) and (velocity_y > 0.5):
                     print("Coasting ascent detected!")
                     self.flight_stage = FLIGHT_STAGES[2]
-                    print(
-                        "Flight stage: %s", self.flight_stage
-                    )
+                    print(f"Flight stage: {self.flight_stage}")
                     continue
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0)
             elif self.flight_stage == FLIGHT_STAGES[2]: # COASTING_ASCENT
                 if velocity_y <= 1:
-                    print(
-                        "Apogee detected at %s m", altitude
-                    )
+                    print(f"Apogee detected at {altitude}m")
                     self.flight_stage = FLIGHT_STAGES[3]
-                    print(
-                        "Flight stage: %s", self.flight_stage
-                    )
+                    print(f"Flight stage: {self.flight_stage}")
                     # sleep for 1 second to prevent false detection of descent # because of the seperation
                     await asyncio.sleep(1)
                     continue
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0)
             elif self.flight_stage == FLIGHT_STAGES[3]: # APOGEE
                 if (-1.0 <= self.accel_y <= 1.0) and (velocity_y > 1):
                     print("Descent detected!")
                     self.flight_stage = FLIGHT_STAGES[4]
-                    print(
-                        "Flight stage: %s", self.flight_stage
-                    )
+                    print(f"Flight stage: {self.flight_stage}")
                     continue
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0)
             elif self.flight_stage == FLIGHT_STAGES[4]: # DESCENT
                 if (pressure >= 1000.0) and (
                     (-1.0 <= velocity_x <= 1.0)
@@ -118,15 +105,16 @@ class FlightManager:
                 ):
                     print("Touchdown detected!")
                     self.flight_stage = FLIGHT_STAGES[5]
-                    print(
-                        "Flight stage: %s", self.flight_stage
-                    )
+                    print(f"Flight stage: {self.flight_stage}")
                     continue
-                await asyncio.sleep(0.01)
+                await asyncio.sleep(0)
 
-        print("Flight stage: %s", self.flight_stage)
-        self.flight_data_file.close()
-        await asyncio.sleep(1)
+        print(f"Flight stage: {self.flight_stage}")
+        if not is_development:
+            try:
+                self.flight_data_file.close()
+            except OSError as err:
+                print("Unable to close flight data file: %s", err)
 
     def get_accel_data(self) -> tuple:
         """Get the accelerometer data"""
@@ -151,7 +139,7 @@ class FlightManager:
         velocity_x: float = 0.0
         velocity_y: float = 0.0
         velocity_z: float = 0.0
-        DT = 0.01 # time between each iteration
+        DT = 0.01 # time between each iteration # TODO make this dynamic
         S = 0.75 # filter/smoothing factor
         
         # Filter accleleration data
@@ -175,9 +163,8 @@ class FlightManager:
             print(f"log file size: {os.stat('/data/flight-data.csv')} bytes")
             # Timestamp,Altitude,Pressure,Temperature,Velocity_X,Velocity_Y,Velocity_Z,Acceleration_X,Acceleration_Y,Acceleration_Z,FlightStage
             self.flight_data_file.write(f"{time.monotonic()},{altitude:.2f},{pressure:.2f},{temperature:.2f},{velocity_x:.4f},{velocity_y:.4f},{velocity_z:.4f},{accel_x:.4f},{accel_y:.4f},{accel_z:.4f},{flight_stage}\n")
-            # self.flight_data_file.flush()
         except OSError:  # Typically when the filesystem isn't writeable...
-            print("Unable to write to filesystem")
+            print("Filesystem not writeable, skipping flight data logging")
         except Exception as e:
             print("Error writing to filesystem: %s", e)
             raise e

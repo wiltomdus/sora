@@ -53,9 +53,9 @@ async def main():
 
     # Start the flight manager task
     print("Run flight manager task...")
-    reed_task = asyncio.create_task(reed.wait(board.GP16))
     flight_manager_task = asyncio.create_task(flight_manager.fly(reed.async_event, is_development))
-    await asyncio.gather(flight_manager_task, reed_task)
+    asyncio.gather(flight_manager_task)
+    asyncio.run(reed.wait(board.GP16))
 
     # Notify the user that the flightManager is stopping
     asyncio.run(notify.buzz(1024, 1))
