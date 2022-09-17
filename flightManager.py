@@ -2,6 +2,7 @@
 
 import time
 import asyncio
+import os
 
 from sensors.accelerometer import Accelerometer
 from sensors.altimeter import Altimeter
@@ -19,13 +20,12 @@ FLIGHT_STAGES = (
 class FlightManager:
     """The flight manager uses data from the altimeter and accelerometer to determine the flight stage"""
 
+
     def __init__(self) -> None:
         self.altimeter = Altimeter()
         self.accelerometer = Accelerometer()
-
-        self.flight_stage = FLIGHT_STAGES[
-            0
-        ]  # Set the initial flight stage to LAUNCHPAD
+        
+        self.flight_stage = FLIGHT_STAGES[0]  # Set the initial flight stage to LAUNCHPAD
         self.initial_altitude: float = 0.0
         self.max_altitude: float = 0.0
         self.max_velocity_y: float = 0.0
@@ -50,6 +50,7 @@ class FlightManager:
             ) = self.get_accel_data()
             await asyncio.sleep(0)
 
+        # Create and open the flight data file
         if not is_development:
             try:
                 self.flight_data_file = open("/data/flight-data.csv", "w")
@@ -58,6 +59,7 @@ class FlightManager:
                 )
                 print("Opened flight data file...")
             except OSError as err:
+                # if the filesystem isn't writeable, skip logging to file
                 print("Unable to open flight data file: %s", err)
                 print("Switching to development mode...")
                 is_development = True
@@ -80,7 +82,8 @@ class FlightManager:
                 time.monotonic() - start_time
             )
 
-            if not is_development:
+            # Check running move and if file isn't bigger than 12MB to prevent overfilling the filesystem
+            if (not is_development) and (os.stat("/data/flight-data.csv")[6] <= 12000000):
                 "In production mode, log the flight data to a file"
                 self.log_flight_data(
                     altitude,
@@ -213,6 +216,7 @@ class FlightManager:
         velocity_z,
         flight_stage,
     ):
+        
         try:
             # Timestamp,Altitude,Pressure,Temperature,Velocity_X,Velocity_Y,Velocity_Z,Acceleration_X,Acceleration_Y,Acceleration_Z,FlightStage
             self.flight_data_file.write(
