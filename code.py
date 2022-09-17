@@ -18,6 +18,7 @@ async def main():
     usb_sense = digitalio.DigitalInOut(board.VBUS_DETECT)
     usb_sense.direction = digitalio.Direction.INPUT
 
+    # Check if filesystem is writable
     try:
         with open("/data/flight-data.csv", "a") as file:
             pass
@@ -46,7 +47,7 @@ async def main():
     print("Reed switch triggered!")
 
     # Notify the user that the reed switch was activated
-    asyncio.run(notify.buzz(1024, 1))
+    asyncio.run(notify.buzz(1300, 1024, 1.5))
 
     # # Set the event to True
     # print("Setting event to True...")
@@ -61,14 +62,13 @@ async def main():
     asyncio.run(reed.wait(board.GP16))
 
     # Notify the user that the flightManager is stopping
-    asyncio.run(notify.buzz(1024, 1))
+    asyncio.run(notify.buzz(1000, 1024, 1.5))
 
     # Logging the max altitude
     max_altitude, max_velocity_y, max_acceleration_y = flight_manager.get_max_values()
     print(f"Max altitude : {max_altitude:.4f}m")
     print(f"Max velocity y axis: {max_velocity_y:.4f}m/s")
     print(f"Max acceleration y axis : {max_acceleration_y:.4f}m/s²")
-
     print("End of flight")
 
 
@@ -79,6 +79,8 @@ async def check_battery(vsys, charging_pin):
 
     if charging_pin.value == 1:
         print("Charging...")
+    else:
+        print("On battery power...")
 
     # convert the raw ADC read into a voltage, and then a percentage
     voltage = vsys.value * conversion_factor
