@@ -55,9 +55,8 @@ All the values are recorded in metric units.
 ### Dependencies
 
 - [CircuitPython](https://learn.adafruit.com/welcome-to-circuitpython/installing-circuitpython)
-- [Adafruit_Blinka](https://pypi.org/project/Adafruit-Blinka/)
 
-### Installing
+### Usage
 
 TODO
 
