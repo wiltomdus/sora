@@ -8,7 +8,7 @@ High power rocket data acquisition system with apogee detection for the RP2040 m
   - [Getting Started](#getting-started)
     - [Hardware](#hardware)
     - [Dependencies](#dependencies)
-    - [Installing](#installing)
+    - [Usage](#usage)
   - [License](#license)
   - [Acknowledgments](#acknowledgments)
 
@@ -33,7 +33,7 @@ To allow for easy activation and deactivation, a reed switch is used to trigger 
 All the values are recorded in metric units.
 
 - Altitude is in meters(m) from ground level
-- Pressure is in hecto Pascal(hPa)/millibar(mb) at current location/elevation
+- Pressure is in hectoPascal(hPa)/millibar(mb) at current location/elevation
 - Temperature is in Celsius(C) at current location/elevation
 - Acceleration is in meters per second per second (m/s²)
 - Velocity is in meters per second(m/s)
@@ -44,13 +44,13 @@ All the values are recorded in metric units.
 ### Hardware
 
 - [PIM560, Pimoroni Pico LiPo - 16MB](https://shop.pimoroni.com/products/pimoroni-pico-lipo?variant=39335427080275)
-- [DPS310 barometric pressure sensor](https://www.adafruit.com/product/4494) 
+- [DPS310 barometric pressure sensor](https://www.adafruit.com/product/4494)
 - [ISM330DHCX accelerometer and gyroscope sensor](https://www.adafruit.com/product/4502)
 - Reed switch
-- Passive Buzzer
-- 3.7V 600mAh battery
+- Push button
+- Buzzer
+- 3.7V 400mAh battery
 - Qwiic/Stemma QT cables
-- GPIO jumper cables
 
 ### Dependencies
 
@@ -58,7 +58,10 @@ All the values are recorded in metric units.
 
 ### Usage
 
-TODO
+- Install [CircuitPython](https://learn.adafruit.com/welcome-to-circuitpython/installing-circuitpython) on your pico
+- Copy the .py file to the CIRCUITPY drive
+- Create a data folder at the root of the CIRCUITPY drive
+- Run PUTTY with the serial port of your device to access REPL(console)
 
 ## License
 
