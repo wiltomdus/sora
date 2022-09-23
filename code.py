@@ -69,6 +69,13 @@ async def main():
     print(f"Max altitude : {max_altitude:.4f}m")
     print(f"Max velocity y axis: {max_velocity_y:.4f}m/s")
     print(f"Max acceleration y axis : {max_acceleration_y:.4f}m/s²")
+
+    # Write the max values to a file for easy access
+    if not is_development:
+        with open("/data/max_data.txt", "w") as max_data_file:
+            max_data_file.write(f"Max altitude : {max_altitude:.4f}m")
+            max_data_file.write(f"Max velocity y : {max_velocity_y:.4f}m")
+            max_data_file.write(f"Max acceleration y : {max_acceleration_y:.4f}m")
     print("End of flight")
 
 
