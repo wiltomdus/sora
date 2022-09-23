@@ -29,8 +29,9 @@ class Altimeter(object):
         )
         self._sensor.wait_temperature_ready()
         self._sensor.wait_pressure_ready()
+        self.initial_altitude: float = self._sensor.altitude
         print("Altimeter initalization finished!")
 
     def get_sensor_data(self) -> tuple:
         """Get current sensor data from altimeter"""
-        return (self._sensor.pressure, self._sensor.altitude, self._sensor.temperature)
+        return (self._sensor.altitude - self.initial_altitude, self._sensor.pressure, self._sensor.temperature)
