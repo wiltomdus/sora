@@ -13,49 +13,41 @@ FLIGHT_STAGES = (
     "COASTING_ASCENT",
     "APOGEE",
     "DESCENT",
-    "LANDED",
+    "LANDING",
 )
 
 
 class FlightManager:
     """The flight manager uses data from the altimeter and accelerometer to determine the flight stage"""
 
-
     def __init__(self) -> None:
         self.altimeter = Altimeter()
         self.accelerometer = Accelerometer()
-        
-        self.flight_stage = FLIGHT_STAGES[0]  # Set the initial flight stage to LAUNCHPAD
+
+        self.flight_stage = FLIGHT_STAGES[
+            0
+        ]  # Set the initial flight stage to LAUNCHPAD
         self.initial_altitude: float = 0.0
         self.max_altitude: float = 0.0
         self.max_velocity_y: float = 0.0
         self.max_acceleration_y: float = 0.0
 
+        self.is_fs_full = False
+
     async def fly(self, event, is_development) -> None:
         """State machine to determine the current flight stage"""
         velocity_y: float = 0.0
-        self.initial_altitude = self.altimeter.get_sensor_data()[1]
+        self.initial_altitude: float = self.altimeter.get_sensor_data()[0]
         print("Flight stage: %s", self.flight_stage)
 
-        # skip first 20 iterations to allow the acceleration gravity correction to stabilize
-        print("Starting aceleration stabilisation...")
-        for _ in range(20):
-            (
-                self.accel_x,
-                self.accel_y,
-                self.accel_z,
-                gyro_x,
-                gyro_y,
-                gyro_z,
-            ) = self.get_accel_data()
-            await asyncio.sleep(0)
+        self.accelerometer.calibrate()
 
         # Create and open the flight data file
         if not is_development:
             try:
                 self.flight_data_file = open("/data/flight-data.csv", "w")
                 self.flight_data_file.write(
-                    "Timestamp,Altitude,Pressure,Temperature,Velocity_X,Velocity_Y,Velocity_Z,Acceleration_X,Acceleration_Y,Acceleration_Z,FlightStage\n"
+                    "Timestamp,Altitude,Pressure,Temperature,Velocity_X,Velocity_Y,Velocity_Z,Acceleration_X,Acceleration_Y,Acceleration_Z,Angular_Velocity_X,Angular_Velocity_Y,Angular_Velocity_Z,FlightStage\n"
                 )
                 print("Opened flight data file...")
             except OSError as err:
@@ -77,13 +69,13 @@ class FlightManager:
                 gyro_z,
             ) = self.get_accel_data()
             # Get the altimeter data
-            pressure, altitude, temperature = self.altimeter.get_sensor_data()
+            altitude, pressure, temperature = self.altimeter.get_sensor_data()
             velocity_x, velocity_y, velocity_z = self.get_velocity(
                 time.monotonic() - start_time
             )
 
             # Check running move and if file isn't bigger than 12MB to prevent overfilling the filesystem
-            if (not is_development) and (os.stat("/data/flight-data.csv")[6] <= 12000000):
+            if not is_development:
                 "In production mode, log the flight data to a file"
                 self.log_flight_data(
                     altitude,
@@ -95,12 +87,18 @@ class FlightManager:
                     velocity_x,
                     velocity_y,
                     velocity_z,
+                    gyro_x,
+                    gyro_y,
+                    gyro_z,
                     self.flight_stage,
+                    os.stat("/data/flight_data.csv")[
+                        6
+                    ],  # get the file size in bytes
                 )
 
             else:
                 print(
-                    f"{time.monotonic()},{altitude:.2f},{pressure:.2f},{temperature:.2f},{velocity_x:.4f},{velocity_y:.4f},{velocity_z:.4f},{self.accel_x:.4f},{self.accel_y:.4f},{self.accel_z:.4f},{self.flight_stage}"
+                    f"{time.monotonic()},{altitude:.2f},{pressure:.2f},{temperature:.2f},{velocity_x:.4f},{velocity_y:.4f},{velocity_z:.4f},{self.accel_x:.4f},{self.accel_y:.4f},{self.accel_z:.4f},{gyro_x:.4f},{gyro_y:.4f},{gyro_z:.4f},{self.flight_stage}"
                 )
 
             # Update the maximum values
@@ -110,48 +108,56 @@ class FlightManager:
 
             # Determine the current flight stage
             if self.flight_stage == FLIGHT_STAGES[0]:  # LAUNCHPAD
-                if self.accel_y > 5.0:  # Acceleration threshold for takeoff
-                    print("Powered ascent detected!")
+                if self.accel_y > 1.0:  # Powered ascent detection
+                    print(f"Powered ascent detected! at {time.monotonic()}s")
                     self.flight_stage = FLIGHT_STAGES[1]
                     print(f"Flight stage: {self.flight_stage}")
-                    continue
                 await asyncio.sleep(0)
             elif self.flight_stage == FLIGHT_STAGES[1]:  # POWERED_ASCENT
-                if (self.accel_y < 0.5) and (velocity_y > 0.5):
-                    print("Coasting ascent detected!")
+                if (self.accel_y <= 1.0) and (
+                    velocity_y > 1.0
+                ):  # Coasting ascent detection
+                    print(f"Coasting ascent detected! at {time.monotonic()}s")
                     self.flight_stage = FLIGHT_STAGES[2]
                     print(f"Flight stage: {self.flight_stage}")
-                    continue
                 await asyncio.sleep(0)
             elif self.flight_stage == FLIGHT_STAGES[2]:  # COASTING_ASCENT
-                if velocity_y <= 1:
-                    print(f"Apogee detected at {altitude}m")
+                if velocity_y <= 1.0:  # Apogee detection
+                    self.apogee_altitude = altitude
+                    print(
+                        f"Apogee detected at {self.apogee_altitude}m at {time.monotonic()}s"
+                    )
                     self.flight_stage = FLIGHT_STAGES[3]
                     print(f"Flight stage: {self.flight_stage}")
-                    # sleep for 1 second to prevent false detection of descent # because of the seperation
+                    # sleep for 1 second to prevent false detection of descent because of the separation
                     await asyncio.sleep(1)
-                    continue
                 await asyncio.sleep(0)
             elif self.flight_stage == FLIGHT_STAGES[3]:  # APOGEE
-                if (-1.0 <= self.accel_y <= 1.0) and (velocity_y > 1):
-                    print("Descent detected!")
+                if (
+                    altitude <= self.apogee_altitude - 15.0
+                ):  # Descent detection when 15 meters below apogee
+                    print(f"Descent detected! at {time.monotonic()}s")
                     self.flight_stage = FLIGHT_STAGES[4]
                     print(f"Flight stage: {self.flight_stage}")
-                    continue
                 await asyncio.sleep(0)
             elif self.flight_stage == FLIGHT_STAGES[4]:  # DESCENT
-                if (pressure >= 1000.0) and (
+                if (
+                    self.initial_altitude - 100.0
+                    <= altitude
+                    <= self.initial_altitude + 100.0
+                ) and (
                     (-1.0 <= velocity_x <= 1.0)
                     and (-1.0 <= velocity_y <= 1.0)
                     and (-1.0 <= velocity_z <= 1.0)
-                ):
-                    print("Touchdown detected!")
+                ):  # Touchdown detection
+                    print(f"Touchdown detected! at {time.monotonic()}")
                     self.flight_stage = FLIGHT_STAGES[5]
                     print(f"Flight stage: {self.flight_stage}")
-                    continue
                 await asyncio.sleep(0)
 
         print(f"Flight stage: {self.flight_stage}")
+        if self.is_fs_full:
+            self.flight_data_file.write("Filesystem full, data logging stopped")
         if not is_development:
             try:
                 self.flight_data_file.close()
@@ -164,14 +170,6 @@ class FlightManager:
         gyro_x, gyro_y, gyro_z = self.accelerometer.get_gyro()
 
         return accel_x, accel_y, accel_z, gyro_x, gyro_y, gyro_z
-
-    def get_alti_data(self) -> tuple:
-        """Get the altimeter data"""
-        altitude = self.altimeter.get_altitude()
-        pressure = self.altimeter.get_pressure()
-        temperature = self.altimeter.get_temperature()
-
-        return altitude, pressure, temperature
 
     def get_velocity(self, dt) -> tuple:
         """Get the velocity for all axis"""
@@ -195,7 +193,7 @@ class FlightManager:
 
         return velocity_x, velocity_y, velocity_z
 
-    def get_max_values(self):
+    def get_max_values(self) -> tuple:
         """Returns the maximum altitude"""
         return (
             self.max_altitude - self.initial_altitude,
@@ -214,14 +212,21 @@ class FlightManager:
         velocity_x,
         velocity_y,
         velocity_z,
+        gyro_x,
+        gyro_y,
+        gyro_z,
         flight_stage,
-    ):
-        
+        file_size,
+    ) -> None:
+
         try:
-            # Timestamp,Altitude,Pressure,Temperature,Velocity_X,Velocity_Y,Velocity_Z,Acceleration_X,Acceleration_Y,Acceleration_Z,FlightStage
-            self.flight_data_file.write(
-                f"{time.monotonic()},{altitude:.2f},{pressure:.2f},{temperature:.2f},{velocity_x:.4f},{velocity_y:.4f},{velocity_z:.4f},{accel_x:.4f},{accel_y:.4f},{accel_z:.4f},{flight_stage}\n"
-            )
+            if file_size <= 12000000:
+                # Timestamp,Altitude,Pressure,Temperature,Velocity_X,Velocity_Y,Velocity_Z,Acceleration_X,Acceleration_Y,Acceleration_Z,FlightStage
+                self.flight_data_file.write(
+                    f"{time.monotonic()},{altitude:.2f},{pressure:.2f},{temperature:.2f},{velocity_x:.4f},{velocity_y:.4f},{velocity_z:.4f},{accel_x:.4f},{accel_y:.4f},{accel_z:.4f},{gyro_x:.4f},{gyro_y:.4f},{gyro_z:.4f},{flight_stage}\n"
+                )
+            else:
+                self.is_fs_full = True
         except OSError:  # Typically when the filesystem isn't writeable...
             print("Filesystem not writeable, skipping flight data logging")
         except Exception as e:
