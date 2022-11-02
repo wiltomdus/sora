@@ -176,9 +176,6 @@ class FlightManager:
         accel_x_filtered = 0.0
         accel_y_filtered = 0.0
         accel_z_filtered = 0.0
-        velocity_x: float = 0.0
-        velocity_y: float = 0.0
-        velocity_z: float = 0.0
         S = 0.75  # filter/smoothing factor
 
         # Filter accleleration data
