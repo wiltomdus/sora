@@ -28,8 +28,7 @@ class Accelerometer(object):
 
     def get_accel(self) -> tuple:
         """Get current acceleration from accelerometer"""
-        accel_x, accel_y, accel_z = self._sensor.acceleration
-        return accel_x, accel_y, accel_z
+        return self._sensor.acceleration
 
     def get_corrected_accel(self) -> tuple:
         """Get current acceleration from accelerometer"""
@@ -50,3 +49,11 @@ class Accelerometer(object):
     def get_gyro(self) -> tuple:
         """Get current angular velocity from gyroscope"""
         return self._sensor.gyro
+    
+    def calibrate(self):
+        """Calibrate the accelerometer"""
+        print("Calibrating accelerometer...")
+        for _ in range(20):
+            accel_x, accel_y, accel_z = self.get_corrected_accel()
+        print("Calibration finished!")
+        
