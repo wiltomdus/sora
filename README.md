@@ -15,9 +15,9 @@ High power rocket data acquisition system with apogee detection for the RP2040 m
 ## Description
 
 Sora is a data acquisition program based on the [DPS310 Precision Barometric Pressure/Altitude sensor](https://www.adafruit.com/product/4494) and the [ISM330DHCX - 6 DoF IMU - Accelerometer and Gyroscope](https://www.adafruit.com/product/4502) and runs on a [PIM560, Pimoroni Pico LiPo - 16MB](https://shop.pimoroni.com/products/pimoroni-pico-lipo?variant=39335427080275).
-The DPS310 sensor is used to track the altitude of the rocket during flight
-The ISM330DHCX sensor is used to track the acceleration and angular velocity in 3 axis
-All of the flight data is logged to the flight-data file (altitude, pressure, temperature, acceleration and angular velocity)
+The DPS310 sensor is used to track the altitude of the rocket during flight.
+The ISM330DHCX sensor is used to track the acceleration and angular velocity in 3 axis.
+All of the flight data is logged to the flight-data file (altitude, pressure, temperature, acceleration and angular velocity).
 To allow for easy activation and deactivation, a reed switch is used to trigger the program. This requires the use of a decently strong magnet to activate the reed switch through the fuselage of the rocket. The recommended use of the reed switch is to activate the avionics after the rocket is installed on the launchpad to prevent a false detection of the powered ascent stage.
 
 ### features
